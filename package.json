@@ -1,0 +1,17 @@
+{
+  "name": "zikodb",
+  "version": "0.0.1",
+  "description": "lightweight document-oriented database management system",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node test.js"
+  },
+  "author": "zakaria elalaoui",
+  "license": "MIT",
+  "dependencies": {
+    "crypto": "^1.0.1",
+    "mapfun": "^0.9.13"
+  }
+}
