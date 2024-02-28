@@ -1,4 +1,4 @@
-import { Db }  from './src/database.js';
+import { Db }  from './src/index.js';
 const Db1 = new Db('Data1');
 async function main() {
 

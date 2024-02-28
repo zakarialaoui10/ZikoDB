@@ -1,4 +1,4 @@
-import { Document } from "./document/index.js"
+import { Document } from "../document/index.js"
 class Db {
     constructor(root) {
       this.root = root;
