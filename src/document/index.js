@@ -1,8 +1,96 @@
-import fs from 'fs'
-import path from 'path'
-import mapfun from 'mapfun'
-import { encrypt, decrypt } from '../utils/crypto.js'
-import { load } from '../utils/load.js'
+// import fs from 'fs'
+// import path from 'path'
+// import mapfun from 'mapfun'
+// import { encrypt, decrypt } from '../utils/crypto.js'
+// import { load } from '../utils/load.js'
+
+// class Document {
+//   constructor(rootFolderPath, documentName, useEncryption = false, encryptionKey = null) {
+//     this.documentPath = path.join(rootFolderPath, documentName);
+//     if (!fs.existsSync(this.documentPath)) {
+//       fs.mkdirSync(this.documentPath, { recursive: true });
+//     }
+//     this.useEncryption = useEncryption;
+//     this.encryptionKey = encryptionKey;
+//     this.data = {};
+//     this.dataToAdd = [];
+//     load.call(this);
+//   }
+
+//   async write(key, value) {
+//     const dataToStore = this.useEncryption ? JSON.stringify(mapfun(n => encrypt(n, this.encryptionKey), {}, value)) : JSON.stringify(value);
+//     this.dataToAdd.push({ key, value: dataToStore });
+//     this.set(key, value);
+//     return this;
+//   }
+
+//   async save() {
+//     for (const { key, value } of this.dataToAdd) {
+//       const filePath = path.join(this.documentPath, key + '.json');
+//       fs.mkdirSync(path.dirname(filePath), { recursive: true });
+//       await fs.promises.writeFile(filePath, value, 'utf8');
+//     }
+//     this.dataToAdd = [];
+//     return this;
+//   }
+
+//   async read(key) {
+//     const parts = key.split('/');
+//     let value = this.data;
+//     for (const part of parts) {
+//       if (!value.hasOwnProperty(part)) {
+//         return null;
+//       }
+//       value = this.useEncryption ? mapfun(n => decrypt(n, this.encryptionKey), {}, value[part]) : value[part];
+//     }
+//     return value;
+//   }
+
+//   async readAll() {
+//     return this.useEncryption ? mapfun(n => decrypt(n, this.encryptionKey), {}, this.data) : this.data;
+//   }
+
+//   async slice(path, start, end) {
+//     const parts = path.split('/');
+//     let value = this.data;
+//     for (const part of parts) {
+//       if (!value.hasOwnProperty(part)) {
+//         return undefined;
+//       }
+//       value = value[part];
+//     }
+//     if (Array.isArray(value)) {
+//       return value.slice(start, end);
+//     }
+//     return undefined;
+//   }
+
+//   set(key, value) {
+//     const parts = key.split('/');
+//     let obj = this.data;
+//     for (let i = 0; i < parts.length - 1; i++) {
+//       const part = parts[i];
+//       if (!obj.hasOwnProperty(part)) {
+//         obj[part] = {};
+//       }
+//       obj = obj[part];
+//     }
+//     obj[parts[parts.length - 1]] = value;
+//     return this;
+//   }
+// }
+
+// export {Document} ;
+
+
+
+
+
+
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { Transform } from 'stream';
 
 class Document {
   constructor(rootFolderPath, documentName, useEncryption = false, encryptionKey = null) {
@@ -14,11 +102,23 @@ class Document {
     this.encryptionKey = encryptionKey;
     this.data = {};
     this.dataToAdd = [];
-    load.call(this);
+    this.uppercaseTransform = new Transform({
+      transform(chunk, encoding, callback) {
+        if (this.useEncryption) {
+          const cipher = crypto.createCipher('aes-256-cbc', this.encryptionKey);
+          let encryptedData = cipher.update(chunk, 'utf8', 'hex');
+          encryptedData += cipher.final('hex');
+          this.push(encryptedData);
+        } else {
+          this.push(chunk);
+        }
+        callback();
+      }
+    });
   }
 
   async write(key, value) {
-    const dataToStore = this.useEncryption ? JSON.stringify(mapfun(n => encrypt(n, this.encryptionKey), {}, value)) : JSON.stringify(value);
+    const dataToStore = JSON.stringify(value);
     this.dataToAdd.push({ key, value: dataToStore });
     this.set(key, value);
     return this;
@@ -28,56 +128,72 @@ class Document {
     for (const { key, value } of this.dataToAdd) {
       const filePath = path.join(this.documentPath, key + '.json');
       fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      await fs.promises.writeFile(filePath, value, 'utf8');
+      
+      const writableStream = fs.createWriteStream(filePath);
+      if (this.useEncryption) {
+        this.uppercaseTransform.pipe(writableStream);
+      }
+      
+      this.uppercaseTransform.end(value);
+      
+      await new Promise((resolve, reject) => {
+        writableStream.on('finish', resolve);
+        writableStream.on('error', reject);
+      });
     }
     this.dataToAdd = [];
     return this;
   }
 
   async read(key) {
-    const parts = key.split('/');
-    let value = this.data;
-    for (const part of parts) {
-      if (!value.hasOwnProperty(part)) {
-        return null;
-      }
-      value = this.useEncryption ? mapfun(n => decrypt(n, this.encryptionKey), {}, value[part]) : value[part];
+    const filePath = path.join(this.documentPath, key + '.json');
+    if (!fs.existsSync(filePath)) {
+      return null;
     }
-    return value;
+    
+    const readableStream = fs.createReadStream(filePath);
+    let data = '';
+    
+    readableStream.on('data', (chunk) => {
+      data += chunk.toString();
+    });
+    
+    return new Promise((resolve, reject) => {
+      readableStream.on('end', () => {
+        if (this.useEncryption) {
+          const decipher = crypto.createDecipher('aes-256-cbc', this.encryptionKey);
+          let decryptedData = decipher.update(data, 'hex', 'utf8');
+          decryptedData += decipher.final('utf8');
+          resolve(JSON.parse(decryptedData));
+        } else {
+          resolve(JSON.parse(data));
+        }
+      });
+      
+      readableStream.on('error', reject);
+    });
   }
 
   async readAll() {
-    return this.useEncryption ? mapfun(n => decrypt(n, this.encryptionKey), {}, this.data) : this.data;
+    const files = fs.readdirSync(this.documentPath);
+    const data = {};
+
+    for (const file of files) {
+      const key = path.basename(file, '.json');
+      data[key] = await this.read(key);
+    }
+
+    return data;
   }
 
   async slice(path, start, end) {
-    const parts = path.split('/');
-    let value = this.data;
-    for (const part of parts) {
-      if (!value.hasOwnProperty(part)) {
-        return undefined;
-      }
-      value = value[part];
-    }
-    if (Array.isArray(value)) {
-      return value.slice(start, end);
-    }
-    return undefined;
+    // Implement slicing logic here
   }
 
   set(key, value) {
-    const parts = key.split('/');
-    let obj = this.data;
-    for (let i = 0; i < parts.length - 1; i++) {
-      const part = parts[i];
-      if (!obj.hasOwnProperty(part)) {
-        obj[part] = {};
-      }
-      obj = obj[part];
-    }
-    obj[parts[parts.length - 1]] = value;
+    this.data[key] = value;
     return this;
   }
 }
 
-export {Document} ;
+export { Document };

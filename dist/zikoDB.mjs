@@ -2,7 +2,7 @@
 /*
   Project: ZikoDB.js
   Author: Zakaria Elalaoui
-  Date : Wed Feb 28 2024 13:44:38 GMT+0100 (UTC+01:00)
+  Date : Fri Mar 08 2024 23:38:28 GMT+0100 (UTC+01:00)
   Git-Repo : https://github.com/zakarialaoui10/ZikoDB.js
   Git-Wiki : https://github.com/zakarialaoui10/ZikoDB.js/wiki
   Released under MIT License
@@ -11,99 +11,14 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { Transform } from 'stream';
 
-function getDefaultExportFromCjs (x) {
-	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
-}
+// import fs from 'fs'
+// import path from 'path'
+// import mapfun from 'mapfun'
+// import { encrypt, decrypt } from '../utils/crypto.js'
+// import { load } from '../utils/load.js'
 
-var mapfun$1 = {exports: {}};
-
-/*
-Developped by zakaria elaloui
-Github : https://github.com/zakarialaoui10
-*/
-
-(function (module, exports) {
-	const mapfun = (fun, { skip = [], key = false, value = true } = {}, ...X) => {
-	  const Y = X.map((x) => {
-	    if (typeof skip === 'string'||[null,undefined].includes(skip))skip=[skip];
-	      const skipPrimitives = [];
-	      const skipObjects = [];
-	      skip.forEach((element) =>(typeof element==="object"&&element !==null)?skipObjects.push(element):skipPrimitives.push(element));
-	        if(skipPrimitives.includes(typeof x)||skipPrimitives.includes(x)) return x;
-	        if(skipObjects.some(n=>x instanceof n))return x;
-	    if (x === null) return fun(null);
-	    if (['number', 'string', 'boolean', 'bigint', 'undefined'].includes(typeof x)) return fun(x);
-	    if (x instanceof Array) return x.map((n) => mapfun(fun,{},n));
-	    if (ArrayBuffer.isView(x)) return Array.from(x).map((n) => fun(n));
-	    if (x instanceof Set) return new Set(mapfun(fun,{},...[...x]));
-	    if (x instanceof Map) return new Map([...x].map(n =>{
-	        return [
-	            key?mapfun(fun,{},n[0]):n[0],
-	            value?mapfun(fun,{},n[1]):n[1],
-	            ]
-	    }));
-	    if (x instanceof Object) return Object.fromEntries(
-	      Object.entries(x).map(([KEY, VALUE]) => [
-	        key?mapfun(fun,{},KEY):KEY,
-	        value?mapfun(fun,{},VALUE):VALUE
-	      ])
-	    )
-	    else throw new Error('Uncategorised data');
-	  });
-	    return Y.length === 1 ? Y[0] : Y;
-	};
-	{
-	  module.exports = mapfun ;
-	} 
-} (mapfun$1));
-
-var mapfunExports = mapfun$1.exports;
-var mapfun = /*@__PURE__*/getDefaultExportFromCjs(mapfunExports);
-
-function encrypt(data, encryptionKey) {
-  if (!encryptionKey) {
-    return data;
-  }
-  const cipher = crypto.createCipher('aes-256-cbc', encryptionKey);
-  let encryptedData = cipher.update(data, 'utf8', 'hex');
-  encryptedData += cipher.final('hex');
-  return encryptedData;
-}
-function decrypt(data, encryptionKey) {
-  if (!encryptionKey) {
-    return data;
-  }
-  const decipher = crypto.createDecipher('aes-256-cbc', encryptionKey);
-  let decryptedData = decipher.update(data, 'hex', 'utf8');
-  decryptedData += decipher.final('utf8');
-  return decryptedData;
-}
-
-function getJsonFiles(folderPath) {
-    const files = fs.readdirSync(folderPath);
-    const jsonFiles = [];
-    for (const file of files) {
-      const filePath = path.join(folderPath, file);
-      const stat = fs.statSync(filePath);
-      if (stat.isDirectory()) {
-        const subJsonFiles = getJsonFiles(filePath);
-        jsonFiles.push(...subJsonFiles);
-      } else if (path.extname(file) === '.json') {
-        jsonFiles.push(filePath);
-      }
-    }
-    return jsonFiles;
-  }
-function load(){
-    const files = getJsonFiles(this.documentPath);
-    for (const file of files) {
-      const data = fs.readFileSync(file, 'utf8');
-      const key = path.relative(this.documentPath, file);
-      const decryptedData = this.useEncryption ? decrypt(data) : data;
-      this.set(key.replace(/\\/g, '/').replace('.json', ''), JSON.parse(decryptedData));
-    }
-  }
 
 class Document {
   constructor(rootFolderPath, documentName, useEncryption = false, encryptionKey = null) {
@@ -115,11 +30,23 @@ class Document {
     this.encryptionKey = encryptionKey;
     this.data = {};
     this.dataToAdd = [];
-    load.call(this);
+    this.uppercaseTransform = new Transform({
+      transform(chunk, encoding, callback) {
+        if (this.useEncryption) {
+          const cipher = crypto.createCipher('aes-256-cbc', this.encryptionKey);
+          let encryptedData = cipher.update(chunk, 'utf8', 'hex');
+          encryptedData += cipher.final('hex');
+          this.push(encryptedData);
+        } else {
+          this.push(chunk);
+        }
+        callback();
+      }
+    });
   }
 
   async write(key, value) {
-    const dataToStore = this.useEncryption ? JSON.stringify(mapfun(n => encrypt(n, this.encryptionKey), {}, value)) : JSON.stringify(value);
+    const dataToStore = JSON.stringify(value);
     this.dataToAdd.push({ key, value: dataToStore });
     this.set(key, value);
     return this;
@@ -129,54 +56,70 @@ class Document {
     for (const { key, value } of this.dataToAdd) {
       const filePath = path.join(this.documentPath, key + '.json');
       fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      await fs.promises.writeFile(filePath, value, 'utf8');
+      
+      const writableStream = fs.createWriteStream(filePath);
+      if (this.useEncryption) {
+        this.uppercaseTransform.pipe(writableStream);
+      }
+      
+      this.uppercaseTransform.end(value);
+      
+      await new Promise((resolve, reject) => {
+        writableStream.on('finish', resolve);
+        writableStream.on('error', reject);
+      });
     }
     this.dataToAdd = [];
     return this;
   }
 
   async read(key) {
-    const parts = key.split('/');
-    let value = this.data;
-    for (const part of parts) {
-      if (!value.hasOwnProperty(part)) {
-        return null;
-      }
-      value = this.useEncryption ? mapfun(n => decrypt(n, this.encryptionKey), {}, value[part]) : value[part];
+    const filePath = path.join(this.documentPath, key + '.json');
+    if (!fs.existsSync(filePath)) {
+      return null;
     }
-    return value;
+    
+    const readableStream = fs.createReadStream(filePath);
+    let data = '';
+    
+    readableStream.on('data', (chunk) => {
+      data += chunk.toString();
+    });
+    
+    return new Promise((resolve, reject) => {
+      readableStream.on('end', () => {
+        if (this.useEncryption) {
+          const decipher = crypto.createDecipher('aes-256-cbc', this.encryptionKey);
+          let decryptedData = decipher.update(data, 'hex', 'utf8');
+          decryptedData += decipher.final('utf8');
+          resolve(JSON.parse(decryptedData));
+        } else {
+          resolve(JSON.parse(data));
+        }
+      });
+      
+      readableStream.on('error', reject);
+    });
   }
 
   async readAll() {
-    return this.useEncryption ? mapfun(n => decrypt(n, this.encryptionKey), {}, this.data) : this.data;
+    const files = fs.readdirSync(this.documentPath);
+    const data = {};
+
+    for (const file of files) {
+      const key = path.basename(file, '.json');
+      data[key] = await this.read(key);
+    }
+
+    return data;
   }
 
   async slice(path, start, end) {
-    const parts = path.split('/');
-    let value = this.data;
-    for (const part of parts) {
-      if (!value.hasOwnProperty(part)) {
-        return undefined;
-      }
-      value = value[part];
-    }
-    if (Array.isArray(value)) {
-      return value.slice(start, end);
-    }
-    return undefined;
+    // Implement slicing logic here
   }
 
   set(key, value) {
-    const parts = key.split('/');
-    let obj = this.data;
-    for (let i = 0; i < parts.length - 1; i++) {
-      const part = parts[i];
-      if (!obj.hasOwnProperty(part)) {
-        obj[part] = {};
-      }
-      obj = obj[part];
-    }
-    obj[parts[parts.length - 1]] = value;
+    this.data[key] = value;
     return this;
   }
 }

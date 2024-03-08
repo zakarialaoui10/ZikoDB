@@ -1,6 +1,6 @@
 {
   "name": "zikodb",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "lightweight document-oriented database management system",
   "main": "src/index.js",
   "type": "module",

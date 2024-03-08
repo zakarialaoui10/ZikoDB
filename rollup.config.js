@@ -15,11 +15,11 @@ const banner= `
 export default {
   input: 'src/index.js',
   output: [{
-    file: 'dist/zikoDB.cjs',
+    file: 'dist/zikodb.cjs',
     format: 'cjs',
     banner,
   },{
-    file: 'dist/zikoDB.mjs',
+    file: 'dist/zikodb.mjs',
     format: 'es',
     banner,
   }  
