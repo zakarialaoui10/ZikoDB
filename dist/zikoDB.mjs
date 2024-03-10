@@ -2,7 +2,7 @@
 /*
   Project: ZikoDB.js
   Author: Zakaria Elalaoui
-  Date : Sun Mar 10 2024 10:44:22 GMT+0000 (UTC)
+  Date : Sun Mar 10 2024 10:39:49 GMT+0000 (UTC)
   Git-Repo : https://github.com/zakarialaoui10/ZikoDB.js
   Git-Wiki : https://github.com/zakarialaoui10/ZikoDB.js/wiki
   Released under MIT License
@@ -116,7 +116,7 @@ class ZikoDb {
     }
   
     createDoc(name) {
-      const document = new Document(this.root, name,true,"ziko");
+      const document = new Document(this.root, name);
       this.documents[name] = document;
       return document;
     }

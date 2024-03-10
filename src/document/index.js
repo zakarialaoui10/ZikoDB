@@ -1,110 +1,82 @@
-import fs from 'fs';
-import path from 'path';
-import crypto from 'crypto';
-import { Transform } from 'stream';
+import fs from 'fs'
+import path from 'path'
+import { load } from '../utils/load.js'
 
 class Document {
-  constructor(rootFolderPath, documentName, useEncryption = false, encryptionKey = null) {
+  constructor(rootFolderPath, documentName) {
     this.documentPath = path.join(rootFolderPath, documentName);
     if (!fs.existsSync(this.documentPath)) {
       fs.mkdirSync(this.documentPath, { recursive: true });
     }
-    this.useEncryption = useEncryption;
-    this.encryptionKey = encryptionKey;
     this.data = {};
     this.dataToAdd = [];
-    this.uppercaseTransform = new Transform({
-      transform(chunk, encoding, callback) {
-        if (this.useEncryption) {
-          const cipher = crypto.createCipher('aes-256-cbc', this.encryptionKey);
-          let encryptedData = cipher.update(chunk, 'utf8', 'hex');
-          encryptedData += cipher.final('hex');
-          this.push(encryptedData);
-        } else {
-          this.push(chunk);
-        }
-        callback();
-      }
-    });
+    load.call(this);
   }
 
   async write(key, value) {
-    const dataToStore = JSON.stringify(value);
-    this.dataToAdd.push({ key, value: dataToStore });
+    this.dataToAdd.push({ key, value: JSON.stringify(value) });
     this.set(key, value);
     return this;
   }
 
   async save() {
+    console.time("benchmark")
     for (const { key, value } of this.dataToAdd) {
       const filePath = path.join(this.documentPath, key + '.json');
       fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      
-      const writableStream = fs.createWriteStream(filePath);
-      if (this.useEncryption) {
-        this.uppercaseTransform.pipe(writableStream);
-      }
-      
-      this.uppercaseTransform.end(value);
-      
-      await new Promise((resolve, reject) => {
-        writableStream.on('finish', resolve);
-        writableStream.on('error', reject);
-      });
+      await fs.promises.writeFile(filePath, value, 'utf8');
     }
+    console.timeEnd("benchmark")
     this.dataToAdd = [];
     return this;
   }
 
   async read(key) {
-    const filePath = path.join(this.documentPath, key + '.json');
-    if (!fs.existsSync(filePath)) {
-      return null;
+    const parts = key.split('/');
+    let value = this.data;
+    for (const part of parts) {
+      if (!value.hasOwnProperty(part)) {
+        return null;
+      }
     }
-    
-    const readableStream = fs.createReadStream(filePath);
-    let data = '';
-    
-    readableStream.on('data', (chunk) => {
-      data += chunk.toString();
-    });
-    
-    return new Promise((resolve, reject) => {
-      readableStream.on('end', () => {
-        if (this.useEncryption) {
-          const decipher = crypto.createDecipher('aes-256-cbc', this.encryptionKey);
-          let decryptedData = decipher.update(data, 'hex', 'utf8');
-          decryptedData += decipher.final('utf8');
-          resolve(JSON.parse(decryptedData));
-        } else {
-          resolve(JSON.parse(data));
-        }
-      });
-      
-      readableStream.on('error', reject);
-    });
+    return value[part];
   }
 
   async readAll() {
-    const files = fs.readdirSync(this.documentPath);
-    const data = {};
-
-    for (const file of files) {
-      const key = path.basename(file, '.json');
-      data[key] = await this.read(key);
-    }
-
-    return data;
+    return this.data
   }
 
   async slice(path, start, end) {
-    // Implement slicing logic here
+    const parts = path.split('/');
+    let value = this.data;
+    for (const part of parts) {
+      if (!value.hasOwnProperty(part)) {
+        return undefined;
+      }
+      value = value[part];
+    }
+    if (Array.isArray(value)) {
+      return value.slice(start, end);
+    }
+    return undefined;
   }
 
   set(key, value) {
-    this.data[key] = value;
+    const parts = key.split('/');
+    let obj = this.data;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i];
+      if (!obj.hasOwnProperty(part)) {
+        obj[part] = {};
+      }
+      obj = obj[part];
+    }
+    obj[parts[parts.length - 1]] = value;
     return this;
   }
 }
 
-export { Document };
+export {Document} ;
+
+
+

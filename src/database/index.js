@@ -1,4 +1,4 @@
-import { Document } from "../document/_index.js"
+import { Document } from "../document/index.js"
 class ZikoDb {
     constructor(root) {
       this.root = root;
@@ -6,7 +6,7 @@ class ZikoDb {
     }
   
     createDoc(name) {
-      const document = new Document(this.root, name,true,"ziko");
+      const document = new Document(this.root, name);
       this.documents[name] = document;
       return document;
     }
