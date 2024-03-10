@@ -2,13 +2,12 @@
   "name": "zikodb",
   "version": "0.0.0",
   "description": "lightweight document-oriented database management system",
-  "main": "src/index.js",
   "type": "module",
   "source": "src/index.js",
   "exports": {
     ".": {
-      "import": "./dist/ziko.mjs",
-      "require": "./dist/ziko.cjs"
+      "import": "./dist/zikodb.mjs",
+      "require": "./dist/zikodb.cjs"
     }
   },
   "scripts": {
@@ -19,10 +18,6 @@
   },
   "author": "zakaria elalaoui",
   "license": "MIT",
-  "dependencies": {
-    "crypto": "^1.0.1",
-    "mapfun": "^0.9.13"
-  },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.7",
     "@rollup/plugin-node-resolve": "^15.2.3",
