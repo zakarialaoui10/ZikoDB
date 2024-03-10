@@ -1,5 +1,5 @@
 import { Document } from "../document/index.js"
-class Db {
+class ZikoDb {
     constructor(root) {
       this.root = root;
       this.documents = {};
@@ -12,10 +12,10 @@ class Db {
     }
   
     getDoc(name) {
-      if(!this.documents[name]) this.createDoc(name)
+      if(!this.documents[name]) this.createDoc(name);
       return this.documents[name];
     }
   }
 export{
-  Db
+  ZikoDb
 }

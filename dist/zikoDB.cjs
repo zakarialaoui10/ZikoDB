@@ -2,7 +2,7 @@
 /*
   Project: ZikoDB.js
   Author: Zakaria Elalaoui
-  Date : Fri Mar 08 2024 23:38:28 GMT+0100 (UTC+01:00)
+  Date : Sun Mar 10 2024 10:05:18 GMT+0000 (UTC)
   Git-Repo : https://github.com/zakarialaoui10/ZikoDB.js
   Git-Wiki : https://github.com/zakarialaoui10/ZikoDB.js/wiki
   Released under MIT License
@@ -126,7 +126,7 @@ class Document {
   }
 }
 
-class Db {
+class ZikoDb {
     constructor(root) {
       this.root = root;
       this.documents = {};
@@ -144,4 +144,4 @@ class Db {
     }
   }
 
-exports.Db = Db;
+module.exports = ZikoDb;

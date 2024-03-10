@@ -1,1 +1,3 @@
-export { Db } from "./database/index.js";
+import { ZikoDb } from "./database/index.js";
+export default ZikoDb;
+
