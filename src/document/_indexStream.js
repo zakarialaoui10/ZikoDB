@@ -1,6 +1,6 @@
-import fs from 'fs'
-import path from 'path'
-import { load } from '../utils/load.js'
+import fs from 'fs';
+import path from 'path';
+import { load } from '../utils/load.js';
 
 class Document {
   constructor(rootFolderPath, documentName) {
@@ -20,15 +20,24 @@ class Document {
   }
 
   async save() {
-    console.time("benchmark")
+    console.time("bennchmark")
     for (const { key, value } of this.dataToAdd) {
       const filePath = path.join(this.documentPath, key + '.json');
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      await fs.promises.writeFile(filePath, value, 'utf8');
+      await this.writeStreamToFile(filePath, value);
     }
-    console.timeEnd("benchmark")
+    console.timeEnd("bennchmark")
     this.dataToAdd = [];
     return this;
+  }
+
+  async writeStreamToFile(filePath, value) {
+    return new Promise((resolve, reject) => {
+      const stream = fs.createWriteStream(filePath, { encoding: 'utf8' });
+      stream.write(value);
+      stream.end();
+      stream.on('finish', resolve);
+      stream.on('error', reject);
+    });
   }
 
   async read(key) {
@@ -43,7 +52,7 @@ class Document {
   }
 
   async readAll() {
-    return this.data
+    return this.data;
   }
 
   async slice(path, start, end) {
@@ -75,8 +84,4 @@ class Document {
     return this;
   }
 }
-
-export {Document} ;
-
-
-
+export {Document}

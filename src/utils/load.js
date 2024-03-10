@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path"
-import {decrypt} from "./crypto.js";
 function getJsonFiles(folderPath) {
     const files = fs.readdirSync(folderPath);
     const jsonFiles = [];
@@ -21,8 +20,7 @@ function load(){
     for (const file of files) {
       const data = fs.readFileSync(file, 'utf8');
       const key = path.relative(this.documentPath, file);
-      const decryptedData = this.useEncryption ? decrypt(data) : data;
-      this.set(key.replace(/\\/g, '/').replace('.json', ''), JSON.parse(decryptedData));
+      this.set(key.replace(/\\/g, '/').replace('.json', ''), JSON.parse(data));
     }
   }
 export{

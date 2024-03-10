@@ -1,4 +1,4 @@
-import { Document } from "../document/index.js"
+import { Document } from "../document/_index.js"
 class ZikoDb {
     constructor(root) {
       this.root = root;
