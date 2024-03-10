@@ -13,7 +13,8 @@
   },
   "scripts": {
     "build": "rollup -c rollup.config.js",
-    "test":  "node test.js",
+    "dev": "rollup -c rollup.config.js -w",
+    "test": "node test.js",
     "start": "node test.js"
   },
   "author": "zakaria elalaoui",
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.7",
     "@rollup/plugin-node-resolve": "^15.2.3",
-    "rollup": "^4.12.0"
+    "rollup": "^4.12.0",
+    "rollup-plugin-livereload": "^2.0.5"
   }
 }

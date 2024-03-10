@@ -1,6 +1,7 @@
 
 import commonjs from '@rollup/plugin-commonjs';
 import resolve from '@rollup/plugin-node-resolve';
+import livereload from 'rollup-plugin-livereload';
 
 const banner= `
 /*
@@ -27,5 +28,8 @@ export default {
   plugins: [
     resolve(), 
     commonjs(),
+    livereload({
+      watch:"src"
+    }) 
   ],
 };

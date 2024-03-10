@@ -2,12 +2,13 @@
 /*
   Project: ZikoDB.js
   Author: Zakaria Elalaoui
-  Date : Sun Mar 10 2024 10:05:18 GMT+0000 (UTC)
+  Date : Sun Mar 10 2024 10:20:09 GMT+0000 (UTC)
   Git-Repo : https://github.com/zakarialaoui10/ZikoDB.js
   Git-Wiki : https://github.com/zakarialaoui10/ZikoDB.js/wiki
   Released under MIT License
 */
 
+(function(l, r) { if (!l || l.getElementById('livereloadscript')) return; r = l.createElement('script'); r.async = 1; r.src = '//' + (self.location.host || 'localhost').split(':')[0] + ':35729/livereload.js?snipver=1'; r.id = 'livereloadscript'; l.getElementsByTagName('head')[0].appendChild(r) })(self.document);
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
