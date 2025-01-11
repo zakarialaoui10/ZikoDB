@@ -1,4 +1,4 @@
-# ZikoDB
+# ZikoDB 
 
 ## Syntaxe
 ```js
